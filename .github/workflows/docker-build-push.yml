@@ -33,7 +33,7 @@ jobs:
         echo "Image Name: ${{ github.event.inputs.image-name }}"
         echo "Image Tag: ${{ github.event.inputs.image-tag }}"
         echo "Registry Namespace: ${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}"
-        echo "Full Image Name: ${{ALIYUN_REGISTRY}}/${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}/${{ github.event.inputs.image-name }}"
+        echo "Full Image Name: ${{secrets.ALIYUN_REGISTRY}}/${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}/${{ github.event.inputs.image-name }}"
         echo "=== End Debug Information ==="
 
     - name: Set up Docker Buildx
@@ -45,7 +45,7 @@ jobs:
         echo "${{ secrets.ALIYUN_REGISTRY_PASSWORD }}" | docker login \
           --username "${{ secrets.ALIYUN_REGISTRY_USER }}" \
           --password-stdin \
-          ${{ALIYUN_REGISTRY}}
+          ${{secrets.ALIYUN_REGISTRY}}
 
     - name: Create Repository if not exists
       run: |
@@ -53,7 +53,7 @@ jobs:
         curl -X PUT \
           -H "Content-Type: application/json" \
           -H "Authorization: Basic $(echo -n "${{ secrets.ALIYUN_REGISTRY_USER }}:${{ secrets.ALIYUN_REGISTRY_PASSWORD }}" | base64)" \
-          "https://${{ALIYUN_REGISTRY}}/v2/${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}/${{ github.event.inputs.image-name }}/tags/list" || true
+          "https://${{secrets.ALIYUN_REGISTRY}}/v2/${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}/${{ github.event.inputs.image-name }}/tags/list" || true
         
         echo "Repository status checked/created"
 
@@ -63,13 +63,13 @@ jobs:
         echo "Building image..."
         # 添加构建参数以减少层数
         docker build --force-rm --no-cache \
-          -t ${{ALIYUN_REGISTRY}}/${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}/${{ github.event.inputs.image-name }}:${{ github.event.inputs.image-tag }} .
+          -t ${{secrets.ALIYUN_REGISTRY}}/${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}/${{ github.event.inputs.image-name }}:${{ github.event.inputs.image-tag }} .
         
         echo "Pushing image..."
         # 尝试推送三次
         for i in 1 2 3; do
           echo "Push attempt $i..."
-          if docker push ${{ALIYUN_REGISTRY}}/${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}/${{ github.event.inputs.image-name }}:${{ github.event.inputs.image-tag }}; then
+          if docker push ${{secrets.ALIYUN_REGISTRY}}/${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}/${{ github.event.inputs.image-name }}:${{ github.event.inputs.image-tag }}; then
             echo "Push successful!"
             break
           fi
