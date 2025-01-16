@@ -1,0 +1,82 @@
+name: Docker Build and Push
+
+on:
+  workflow_dispatch:
+    inputs:
+      project-dir:
+        description: '要构建的项目目录 (例如: cuda-conda-ubuntu)'
+        required: true
+        default: 'cuda-conda-ubuntu'
+      image-name:
+        description: '镜像名称'
+        required: true
+        default: 'cuda-conda-ubuntu'
+      image-tag:
+        description: '镜像标签'
+        required: true
+        default: 'latest'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Debug Information
+      run: |
+        echo "=== Debug Information ==="
+        echo "Current Directory Contents:"
+        ls -la
+        echo "Project Directory: ${{ github.event.inputs.project-dir }}"
+        echo "Image Name: ${{ github.event.inputs.image-name }}"
+        echo "Image Tag: ${{ github.event.inputs.image-tag }}"
+        echo "Registry Namespace: ${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}"
+        echo "Full Image Name: ${{ALIYUN_REGISTRY}}/${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}/${{ github.event.inputs.image-name }}"
+        echo "=== End Debug Information ==="
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to Aliyun Registry
+      run: |
+        echo "Attempting to login to Aliyun Registry..."
+        echo "${{ secrets.ALIYUN_REGISTRY_PASSWORD }}" | docker login \
+          --username "${{ secrets.ALIYUN_REGISTRY_USER }}" \
+          --password-stdin \
+          ${{ALIYUN_REGISTRY}}
+
+    - name: Create Repository if not exists
+      run: |
+        # 使用阿里云CLI创建仓库（如果不存在）
+        curl -X PUT \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Basic $(echo -n "${{ secrets.ALIYUN_REGISTRY_USER }}:${{ secrets.ALIYUN_REGISTRY_PASSWORD }}" | base64)" \
+          "https://${{ALIYUN_REGISTRY}}/v2/${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}/${{ github.event.inputs.image-name }}/tags/list" || true
+        
+        echo "Repository status checked/created"
+
+    - name: Build and push Docker image
+      run: |
+        cd ${{ github.event.inputs.project-dir }}
+        echo "Building image..."
+        # 添加构建参数以减少层数
+        docker build --force-rm --no-cache \
+          -t ${{ALIYUN_REGISTRY}}/${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}/${{ github.event.inputs.image-name }}:${{ github.event.inputs.image-tag }} .
+        
+        echo "Pushing image..."
+        # 尝试推送三次
+        for i in 1 2 3; do
+          echo "Push attempt $i..."
+          if docker push ${{ALIYUN_REGISTRY}}/${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}/${{ github.event.inputs.image-name }}:${{ github.event.inputs.image-tag }}; then
+            echo "Push successful!"
+            break
+          fi
+          if [ $i -eq 3 ]; then
+            echo "All push attempts failed"
+            exit 1
+          fi
+          echo "Push failed, waiting before retry..."
+          sleep 10
+        done
