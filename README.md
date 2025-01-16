@@ -36,9 +36,10 @@ ALIYUN_REGISTRY_NAMESPACE,ALIYUN_REGISTRY_USER，ALIYUN_REGISTRY_PASSWORD，ALIY
 
 ### 添加镜像
 当前目录新建一个文件夹，后续讲作为镜像的名字，里面放一个你已经写好的Dockerfile文件
-![](doc/images.png)
-文件提交后，自动进入Github Action构建
-
+### 构建镜像
+![](doc/启动action.jpg)
+![](doc/运行job.jpg)
+![](doc/镜像信息.jpg)
 ### 使用镜像
 回到阿里云，镜像仓库，点击任意镜像，可查看镜像状态。(可以改成公开，拉取镜像免登录)
 ![](doc/开始使用.png)
